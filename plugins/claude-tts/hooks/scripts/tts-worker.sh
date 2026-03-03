@@ -62,12 +62,12 @@ VOICE_ID="21m00Tcm4TlvDq8ikWAM"
 MODEL_ID="eleven_flash_v2_5"
 
 if [[ -z "$API_KEY" && -f "$CONFIG_FILE" ]]; then
-  API_KEY=$(sed -n '/^---$/,/^---$/{ /^elevenlabs_api_key:/{ s/^elevenlabs_api_key:[[:space:]]*"*\([^"]*\)"*/\1/p; } }' "$CONFIG_FILE" | head -1)
+  API_KEY=$(grep '^elevenlabs_api_key:' "$CONFIG_FILE" | head -1 | sed -E 's/^elevenlabs_api_key:[[:space:]]*"?([^"]*)"?/\1/')
   # Read optional voice_id override
-  _VID=$(sed -n '/^---$/,/^---$/{ /^voice_id:/{ s/^voice_id:[[:space:]]*"*\([^"]*\)"*/\1/p; } }' "$CONFIG_FILE" | head -1)
+  _VID=$(grep '^voice_id:' "$CONFIG_FILE" | head -1 | sed -E 's/^voice_id:[[:space:]]*"?([^"]*)"?/\1/')
   [[ -n "$_VID" ]] && VOICE_ID="$_VID"
   # Read optional model_id override
-  _MID=$(sed -n '/^---$/,/^---$/{ /^model_id:/{ s/^model_id:[[:space:]]*"*\([^"]*\)"*/\1/p; } }' "$CONFIG_FILE" | head -1)
+  _MID=$(grep '^model_id:' "$CONFIG_FILE" | head -1 | sed -E 's/^model_id:[[:space:]]*"?([^"]*)"?/\1/')
   [[ -n "$_MID" ]] && MODEL_ID="$_MID"
 fi
 
