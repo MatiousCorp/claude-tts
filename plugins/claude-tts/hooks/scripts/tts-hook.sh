@@ -23,43 +23,11 @@ fi
 HOOK_INPUT=$(cat)
 log "Hook input: $HOOK_INPUT"
 
-# Extract transcript path
-TRANSCRIPT_PATH=$(echo "$HOOK_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
-log "Transcript path: $TRANSCRIPT_PATH"
-
-if [[ -z "$TRANSCRIPT_PATH" ]]; then
-  log "No transcript_path in input, exiting"
-  exit 0
-fi
-
-if [[ ! -f "$TRANSCRIPT_PATH" ]]; then
-  log "Transcript file not found: $TRANSCRIPT_PATH, exiting"
-  exit 0
-fi
-
-# Get the last assistant message from JSONL transcript
-LAST_LINE=$(grep '"role":"assistant"' "$TRANSCRIPT_PATH" | tail -1 || true)
-if [[ -z "$LAST_LINE" ]]; then
-  log "No assistant messages found in transcript, exiting"
-  exit 0
-fi
-
-log "Last assistant line length: ${#LAST_LINE}"
-
-# Extract text content blocks and join them
-MESSAGE=$(echo "$LAST_LINE" | jq -r '
-  .message.content
-  | if type == "array" then
-      map(select(.type == "text")) | map(.text) | join("\n")
-    elif type == "string" then
-      .
-    else
-      empty
-    end
-' 2>/dev/null || true)
+# Extract last_assistant_message directly from hook input (most reliable)
+MESSAGE=$(echo "$HOOK_INPUT" | jq -r '.last_assistant_message // empty' 2>/dev/null)
 
 if [[ -z "$MESSAGE" ]]; then
-  log "No text content extracted, exiting"
+  log "No last_assistant_message in hook input, exiting"
   exit 0
 fi
 
