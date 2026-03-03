@@ -1,5 +1,5 @@
 {
-  "description": "Speaks Claude responses aloud via ElevenLabs TTS",
+  "description": "Speaks Claude responses aloud via configurable TTS provider",
   "hooks": {
     "Stop": [
       {

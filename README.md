@@ -1,12 +1,22 @@
 # claude-tts
 
-Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses aloud using ElevenLabs TTS with macOS `say` fallback.
+Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses aloud using your choice of TTS provider, with macOS `say` as a universal fallback.
+
+## Supported Providers
+
+| Provider | Quality | Cost | Requirements |
+|----------|---------|------|-------------|
+| **ElevenLabs** | Excellent | Paid | API key |
+| **OpenAI** | Very good | Paid | API key |
+| **Google Cloud** | Very good | Paid (free tier available) | API key |
+| **Amazon Polly** | Good | Paid (free tier available) | AWS CLI configured |
+| **Azure Speech** | Very good | Paid (free tier available) | API key + region |
+| **macOS say** | Basic | Free | macOS built-in |
 
 ## Requirements
 
 - macOS (uses `afplay` for audio playback)
 - `jq` (`brew install jq`)
-- ElevenLabs API key (optional — falls back to macOS `say` if not configured)
 
 ## Install
 
@@ -22,33 +32,39 @@ claude plugin install claude-tts
 git clone https://github.com/MatiousCorp/claude-tts.git ~/.claude/plugins/claude-tts
 ```
 
-Or symlink for development:
-
-```bash
-git clone https://github.com/MatiousCorp/claude-tts.git ~/Documents/claude-tts
-ln -s ~/Documents/claude-tts ~/.claude/plugins/claude-tts
-```
-
 Restart Claude Code after installing.
 
 ## Setup
 
-In Claude Code, run:
-
 ```
-/claude-tts:tts-setup sk_your_elevenlabs_api_key
+/claude-tts:tts-setup <provider> <api-key>
 ```
 
-This will:
-1. Save your API key to `~/.claude/claude-tts.local.md`
-2. Enable TTS
-3. Test the pipeline with a sample phrase
+### Examples
 
-Get your ElevenLabs API key at: https://elevenlabs.io/app/settings/api-keys
+```
+/claude-tts:tts-setup elevenlabs sk_abc123
+/claude-tts:tts-setup openai sk-abc123
+/claude-tts:tts-setup google AIza...
+/claude-tts:tts-setup amazon
+/claude-tts:tts-setup azure your-key-here
+/claude-tts:tts-setup say
+```
+
+### Provider details
+
+| Provider | Default voice | Default model | Auth |
+|----------|---------------|---------------|------|
+| elevenlabs | Rachel (`21m00Tcm4TlvDq8ikWAM`) | `eleven_flash_v2_5` | `xi-api-key` header |
+| openai | `alloy` | `tts-1` | `Bearer` token |
+| google | `en-US-Neural2-F` | n/a | `X-Goog-Api-Key` header |
+| amazon | `Joanna` | `neural` | AWS CLI env creds |
+| azure | `en-US-JennyNeural` | n/a | `Ocp-Apim-Subscription-Key` header |
+| say | system default | n/a | none |
 
 ### Without an API key
 
-The plugin works without an API key using macOS built-in `say` command (lower quality but free and offline).
+The plugin works without any API key using macOS built-in `say` command (lower quality but free and offline).
 
 ## Usage
 
@@ -60,51 +76,52 @@ Once set up, TTS works automatically. Every time Claude finishes a response, the
 |---------|-------------|
 | `/claude-tts:tts-on` | Enable TTS |
 | `/claude-tts:tts-off` | Disable TTS |
-| `/claude-tts:tts-status` | Show current status |
-| `/claude-tts:tts-setup <key>` | Configure API key |
+| `/claude-tts:tts-status` | Show current status and provider |
+| `/claude-tts:tts-setup <provider> [key]` | Configure TTS provider |
 
 ## Configuration
 
 Config is stored in `~/.claude/claude-tts.local.md`:
 
-```markdown
+```yaml
 ---
-elevenlabs_api_key: "sk_..."
+provider: "elevenlabs"
+api_key: "sk_..."
 voice_id: "21m00Tcm4TlvDq8ikWAM"
 model_id: "eleven_flash_v2_5"
 ---
 ```
 
-### Voice customization
+Only `provider` is required. Each provider has sensible defaults for `voice_id` and `model_id`.
 
-Change `voice_id` to use a different ElevenLabs voice. Browse voices at:
-https://elevenlabs.io/docs/api-reference/get-voices
+For Azure, add `region`:
 
-### Environment variable
+```yaml
+---
+provider: "azure"
+api_key: "your-key"
+region: "eastus"
+---
+```
 
-Set `ELEVENLABS_API_KEY` in your shell profile to skip the config file. The env var takes precedence.
+### Environment variables
+
+- `CLAUDE_TTS_API_KEY` — generic, works with any provider
+- `ELEVENLABS_API_KEY` — legacy fallback for ElevenLabs provider
+
+### Migration from v1
+
+If your config has `elevenlabs_api_key:` but no `provider:`, it will automatically be treated as ElevenLabs. No action needed.
 
 ## How it works
 
 1. Claude finishes a response (Stop hook fires)
-2. The hook reads the last assistant message from the JSONL transcript
-3. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped
-4. A background worker sends the text to ElevenLabs (or macOS `say`)
+2. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped
+3. A background worker sends the text to your configured provider
+4. If the provider fails, macOS `say` is used as fallback
 5. Audio files are queued and played sequentially via `afplay`
 
 The hook exits immediately so Claude Code is never blocked.
-
-## Text cleaning
-
-The following are stripped before speaking:
-- Fenced code blocks
-- Inline code
-- URLs
-- File paths
-- Markdown formatting (headings, bold, italic, lists, tables, links)
-- Responses under 5 characters are skipped
-
-Text is truncated to 5000 characters to control API costs.
 
 ## Troubleshooting
 
@@ -113,23 +130,14 @@ Text is truncated to 5000 characters to control API costs.
 2. Make sure `jq` is installed: `brew install jq`
 3. Check that `~/.claude/tts-enabled` exists
 
-**ElevenLabs errors**
-- Verify your API key at https://elevenlabs.io/app/settings/api-keys
-- Check your ElevenLabs usage quota
+**Provider errors**
+- Verify your API key and provider settings
+- Check your usage quota with the provider
 - The plugin falls back to macOS `say` automatically on API errors
 
 **Audio queue stuck**
 - Kill the daemon: `kill $(cat ${TMPDIR}/claude_tts_queue/daemon.pid)`
 - Clear the queue: `rm -f ${TMPDIR}/claude_tts_queue/*.mp3 ${TMPDIR}/claude_tts_queue/*.aiff`
-
-**Plugin not loading**
-- Ensure the plugin is in `~/.claude/plugins/claude-tts/`
-- Restart Claude Code after installing
-
-## Platform notes
-
-- **macOS only** — relies on `afplay` for playback and `say` for fallback
-- Linux/Windows: would need alternative audio players (not yet supported)
 
 ## License
 

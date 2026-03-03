@@ -1,15 +1,15 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-tts-marketplace",
-  "description": "Text-to-speech plugin for Claude Code",
+  "description": "Text-to-speech plugin for Claude Code with multi-provider support",
   "owner": {
     "name": "Youssef"
   },
   "plugins": [
     {
       "name": "claude-tts",
-      "description": "Text-to-speech for Claude Code responses using ElevenLabs with macOS fallback",
-      "version": "1.0.0",
+      "description": "Text-to-speech for Claude Code responses with multi-provider support (ElevenLabs, OpenAI, Google, Amazon Polly, Azure, macOS say)",
+      "version": "2.0.0",
       "author": {
         "name": "Youssef"
       },
