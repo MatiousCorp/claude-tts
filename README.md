@@ -11,6 +11,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | **Google Cloud** | Very good | Paid (free tier available) | API key |
 | **Amazon Polly** | Good | Paid (free tier available) | AWS CLI configured |
 | **Azure Speech** | Very good | Paid (free tier available) | API key + region |
+| **Edge TTS** | Very good | Free | `pip install edge-tts` |
 | **Local TTS** | Basic | Free | Built-in (see below) |
 
 ## Requirements
@@ -52,6 +53,7 @@ Restart Claude Code after installing.
 /claude-tts:tts-setup google AIza...
 /claude-tts:tts-setup amazon
 /claude-tts:tts-setup azure your-key-here
+/claude-tts:tts-setup edge
 /claude-tts:tts-setup local
 ```
 
@@ -64,14 +66,15 @@ Restart Claude Code after installing.
 | google | `en-US-Neural2-F` | n/a | `X-Goog-Api-Key` header |
 | amazon | `Joanna` | `neural` | AWS CLI env creds |
 | azure | `en-US-JennyNeural` | n/a | `Ocp-Apim-Subscription-Key` header |
+| edge | `en-US-AriaNeural` | n/a | none (free) |
 | local | system default | n/a | none |
 
 ### Without an API key
 
-The plugin works without any API key using your system's built-in TTS:
-- **macOS**: `say` command
-- **Linux**: `espeak-ng`, `espeak`, or `piper`
-- **Windows**: PowerShell SAPI (`System.Speech.Synthesis`)
+The plugin works without any API key:
+
+- **Edge TTS**: High-quality neural voices via `edge-tts` (`pip install edge-tts`)
+- **Local TTS**: System built-in — macOS `say`, Linux `espeak-ng`/`espeak`/`piper`, Windows PowerShell SAPI
 
 ## Usage
 

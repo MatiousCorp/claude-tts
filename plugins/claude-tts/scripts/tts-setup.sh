@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$HOME/.claude/claude-tts.local.md"
-VALID_PROVIDERS="elevenlabs openai google amazon azure local"
+VALID_PROVIDERS="elevenlabs openai google amazon azure edge local"
 
 # Source cross-platform abstraction layer
 source "${PLUGIN_ROOT}/hooks/scripts/platform.sh"
@@ -28,6 +28,7 @@ if [[ -z "$PROVIDER" ]]; then
   echo "  google      — Google Cloud Text-to-Speech"
   echo "  amazon      — Amazon Polly (uses AWS CLI creds)"
   echo "  azure       — Azure Cognitive Services Speech"
+  echo "  edge        — Microsoft Edge TTS (free, no key needed)"
   echo "  local       — System built-in TTS (free, no key needed)"
   echo ""
   echo "Examples:"
@@ -60,7 +61,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # Require API key for cloud providers
-if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && -z "$API_KEY" ]]; then
+if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge" && -z "$API_KEY" ]]; then
   echo "ERROR: API key required for $PROVIDER"
   echo ""
   case "$PROVIDER" in
@@ -90,6 +91,15 @@ provider: "amazon"
 
 Claude TTS configuration. Provider: Amazon Polly.
 Uses AWS CLI credentials (aws configure).
+EOF
+elif [[ "$PROVIDER" == "edge" ]]; then
+  cat > "$CONFIG_FILE" << EOF
+---
+provider: "edge"
+---
+
+Claude TTS configuration. Provider: Microsoft Edge TTS.
+Requires: pip install edge-tts
 EOF
 else
   cat > "$CONFIG_FILE" << EOF
@@ -170,6 +180,14 @@ case "$PROVIDER" in
       -H "Content-Type: application/ssml+xml" \
       -H "X-Microsoft-OutputFormat: audio-16khz-128kbitrate-mono-mp3" \
       -d "$SSML" 2>/dev/null || echo "000")
+    ;;
+  edge)
+    if command -v edge-tts &>/dev/null; then
+      edge-tts --voice "en-US-AriaNeural" --text "$TEST_TEXT" --write-media "$TEST_FILE" &>/dev/null && HTTP_CODE="200" || HTTP_CODE="000"
+    else
+      echo "edge-tts not found. Install with: pip install edge-tts"
+      HTTP_CODE="000"
+    fi
     ;;
   local)
     if check_local_tts; then

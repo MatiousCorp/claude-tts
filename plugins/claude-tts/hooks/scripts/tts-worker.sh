@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -102,6 +102,9 @@ case "$PROVIDER" in
   azure)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="en-US-JennyNeural"
     [[ -z "$REGION" ]] && REGION="eastus"
+    ;;
+  edge)
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="en-US-AriaNeural"
     ;;
   local) ;;
 esac
@@ -261,6 +264,18 @@ tts_azure() {
   validate_audio "$AUDIO_FILE"
 }
 
+tts_edge() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.mp3"
+
+  if ! command -v edge-tts &>/dev/null; then
+    return 1
+  fi
+
+  edge-tts --voice "$VOICE_ID" --text "$CLEANED" --write-media "$AUDIO_FILE" &>/dev/null
+
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -290,13 +305,14 @@ validate_audio() {
 }
 
 # --- Provider Dispatch ---
-if [[ "$PROVIDER" != "local" && -n "$API_KEY" ]]; then
+if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" ) ]]; then
   case "$PROVIDER" in
     elevenlabs) tts_elevenlabs || USE_FALLBACK=true ;;
     openai)     tts_openai     || USE_FALLBACK=true ;;
     google)     tts_google     || USE_FALLBACK=true ;;
     amazon)     tts_amazon     || USE_FALLBACK=true ;;
     azure)      tts_azure      || USE_FALLBACK=true ;;
+    edge)       tts_edge       || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else
