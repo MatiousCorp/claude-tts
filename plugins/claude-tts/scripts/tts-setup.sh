@@ -203,6 +203,28 @@ case "$PROVIDER" in
     ;;
   kitten)
     TEST_FILE="${QUEUE_DIR}/test_setup.wav"
+    # Auto-install espeak system dependency if missing
+    if ! command -v espeak &>/dev/null && ! command -v espeak-ng &>/dev/null; then
+      echo "Installing espeak (required by Kitten TTS)..."
+      case "$CLAUDE_TTS_OS" in
+        macos)   brew install espeak 2>/dev/null ;;
+        linux)
+          if command -v apt-get &>/dev/null; then sudo apt-get install -y espeak-ng 2>/dev/null
+          elif command -v dnf &>/dev/null; then sudo dnf install -y espeak-ng 2>/dev/null
+          elif command -v pacman &>/dev/null; then sudo pacman -S --noconfirm espeak-ng 2>/dev/null
+          fi ;;
+      esac
+      if ! command -v espeak &>/dev/null && ! command -v espeak-ng &>/dev/null; then
+        echo "WARNING: Could not install espeak. Install manually: $(install_hint espeak)"
+      else
+        echo "espeak: OK"
+      fi
+    fi
+    # Auto-install Python packages if missing
+    if ! python3 -c "import kittentts" &>/dev/null; then
+      echo "Installing KittenTTS and soundfile..."
+      pip install KittenTTS soundfile 2>&1 | tail -1
+    fi
     if python3 -c "import kittentts" &>/dev/null; then
       KITTEN_TEXT="$TEST_TEXT" KITTEN_OUTPUT="$TEST_FILE" \
         python3 -c "
@@ -213,8 +235,7 @@ audio = model.generate(text=os.environ['KITTEN_TEXT'], voice='Bella', speed=1.0)
 sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
 " &>/dev/null && HTTP_CODE="200" || HTTP_CODE="000"
     else
-      echo "KittenTTS not found. Install with: pip install KittenTTS soundfile"
-      echo "System dependency: espeak (brew install espeak / apt install espeak)"
+      echo "ERROR: Failed to install KittenTTS. Try manually: pip install KittenTTS soundfile"
       HTTP_CODE="000"
     fi
     ;;
