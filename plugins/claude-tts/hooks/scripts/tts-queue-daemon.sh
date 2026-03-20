@@ -17,8 +17,8 @@ cleanup() {
   # Kill all child processes (audio players like afplay, mpv, etc.)
   pkill -P $$ 2>/dev/null || true
   rm -f "$PID_FILE"
-  # Clear remaining queued audio files
-  rm -f "${QUEUE_DIR}/"*.mp3 "${QUEUE_DIR}/"*.wav 2>/dev/null || true
+  # Clear remaining queued audio files (use find to avoid zsh glob issues)
+  find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" \) -delete 2>/dev/null || true
 }
 trap cleanup EXIT TERM INT
 

@@ -18,10 +18,8 @@ if [[ -f "${QUEUE_DIR}/daemon.pid" ]]; then
   rm -f "${QUEUE_DIR}/daemon.pid"
 fi
 
-# Clear remaining queued audio files
-rm -f "${QUEUE_DIR}/"*.mp3 "${QUEUE_DIR}/"*.wav 2>/dev/null || true
-
-# Reset sequence counter so next TTS starts fresh
-rm -f "${QUEUE_DIR}/.seq" 2>/dev/null || true
+# Clear remaining queued audio files and reset sequence counter
+# Use find instead of glob to avoid zsh nomatch errors
+find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" -o -name ".seq" \) -delete 2>/dev/null || true
 
 exit 0
