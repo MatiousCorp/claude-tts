@@ -10,6 +10,12 @@ source "$(cd "$(dirname "$0")" && pwd)/platform.sh"
 QUEUE_DIR="${TMPDIR:-/tmp}/claude_tts_queue"
 mkdir -p "$QUEUE_DIR"
 
+# Ensure only one daemon instance runs at a time (atomic lock)
+DAEMON_LOCK="${QUEUE_DIR}/.daemon_lock"
+if ! mkdir "$DAEMON_LOCK" 2>/dev/null; then
+  exit 0
+fi
+
 PID_FILE="${QUEUE_DIR}/daemon.pid"
 echo $$ > "$PID_FILE"
 
@@ -17,6 +23,7 @@ cleanup() {
   # Kill all child processes (audio players like afplay, mpv, etc.)
   pkill -P $$ 2>/dev/null || true
   rm -f "$PID_FILE"
+  rm -rf "$DAEMON_LOCK"
   # Clear remaining queued audio files (use find to avoid zsh glob issues)
   find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" \) -delete 2>/dev/null || true
 }

@@ -21,6 +21,9 @@ if [[ -f "${QUEUE_DIR}/daemon.pid" ]]; then
   rm -f "${QUEUE_DIR}/daemon.pid"
 fi
 
+# Remove daemon lock so a new daemon can start
+rm -rf "${QUEUE_DIR}/.daemon_lock" 2>/dev/null || true
+
 # Clear remaining queued audio files and reset sequence counter
 # Use find instead of glob to avoid zsh nomatch errors
 find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" -o -name ".seq" \) -delete 2>/dev/null || true
