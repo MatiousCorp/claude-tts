@@ -69,7 +69,7 @@ Restart Claude Code after installing.
 | amazon | `Joanna` | `neural` | AWS CLI env creds |
 | azure | `en-US-JennyNeural` | n/a | `Ocp-Apim-Subscription-Key` header |
 | edge | `en-US-AriaNeural` | n/a | none (free) |
-| kitten | `Bella` | n/a | none (free, local) |
+| kitten | `expr-voice-2-f` | n/a | none (free, local) |
 | local | system default | n/a | none |
 
 ### Without an API key
@@ -77,7 +77,7 @@ Restart Claude Code after installing.
 The plugin works without any API key:
 
 - **Edge TTS**: High-quality neural voices via `edge-tts` (`pip install edge-tts`)
-- **Kitten TTS**: Lightweight open-source model (under 25MB, CPU-only) with 8 expressive voices (`pip install KittenTTS soundfile`, plus `espeak` system dep)
+- **Kitten TTS**: Lightweight open-source model (under 25MB, CPU-only) with 8 expressive voices (`pip install KittenTTS soundfile`, plus `espeak` system dep). Requires Python 3.9+
 - **Local TTS**: System built-in — macOS `say`, Linux `espeak-ng`/`espeak`/`piper`, Windows PowerShell SAPI
 
 ## Usage

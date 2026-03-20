@@ -106,12 +106,13 @@ elif [[ "$PROVIDER" == "kitten" ]]; then
   cat > "$CONFIG_FILE" << EOF
 ---
 provider: "kitten"
+voice_id: "expr-voice-2-f"
 ---
 
 Claude TTS configuration. Provider: Kitten TTS V0.8.
 Requires: pip install KittenTTS soundfile
 System dep: espeak (brew install espeak / apt install espeak)
-Voices: Bella, Jasper, Luna, Bruno, Rosie, Hugo, Kiki, Leo
+Voices: expr-voice-2-m, expr-voice-2-f, expr-voice-3-m, expr-voice-3-f, expr-voice-4-m, expr-voice-4-f, expr-voice-5-m, expr-voice-5-f
 EOF
 else
   cat > "$CONFIG_FILE" << EOF
@@ -231,7 +232,7 @@ case "$PROVIDER" in
 import os, soundfile as sf
 from kittentts import KittenTTS
 model = KittenTTS()
-audio = model.generate(text=os.environ['KITTEN_TEXT'], voice='Bella', speed=1.0)
+audio = model.generate(text=os.environ['KITTEN_TEXT'], voice='expr-voice-2-f', speed=1.0)
 sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
 " &>/dev/null && HTTP_CODE="200" || HTTP_CODE="000"
     else

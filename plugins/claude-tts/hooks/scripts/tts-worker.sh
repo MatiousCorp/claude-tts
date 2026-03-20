@@ -107,7 +107,7 @@ case "$PROVIDER" in
     [[ -z "$VOICE_ID" ]] && VOICE_ID="en-US-AriaNeural"
     ;;
   kitten)
-    [[ -z "$VOICE_ID" ]] && VOICE_ID="Bella"
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="expr-voice-2-f"
     ;;
   local) ;;
 esac
