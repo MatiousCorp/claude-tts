@@ -18,6 +18,23 @@ if [[ -z "$MESSAGE" ]]; then
   exit 0
 fi
 
+# Prevent duplicate execution (e.g., plugin registered in multiple locations)
+HOOK_LOCK="${TMPDIR:-/tmp}/claude_tts_hook.lock"
+if [[ -d "$HOOK_LOCK" ]]; then
+  # Check if the lock holder is still alive
+  LOCK_PID=$(cat "$HOOK_LOCK/pid" 2>/dev/null || echo "")
+  if [[ -n "$LOCK_PID" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
+    exit 0
+  fi
+  # Stale lock — remove it
+  rm -rf "$HOOK_LOCK"
+fi
+if ! mkdir "$HOOK_LOCK" 2>/dev/null; then
+  exit 0
+fi
+echo $$ > "$HOOK_LOCK/pid"
+trap 'rm -rf "$HOOK_LOCK"' EXIT
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Stop any currently playing TTS before starting new

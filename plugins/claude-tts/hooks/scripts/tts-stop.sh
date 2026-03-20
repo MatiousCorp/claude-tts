@@ -6,6 +6,9 @@ set -uo pipefail
 
 QUEUE_DIR="${TMPDIR:-/tmp}/claude_tts_queue"
 
+# Kill any running TTS workers (API calls in progress)
+pkill -f "tts-worker.sh" 2>/dev/null || true
+
 # Kill the queue daemon and its child audio players
 if [[ -f "${QUEUE_DIR}/daemon.pid" ]]; then
   DAEMON_PID=$(cat "${QUEUE_DIR}/daemon.pid" 2>/dev/null || echo "")
