@@ -14,9 +14,13 @@ PID_FILE="${QUEUE_DIR}/daemon.pid"
 echo $$ > "$PID_FILE"
 
 cleanup() {
+  # Kill all child processes (audio players like afplay, mpv, etc.)
+  pkill -P $$ 2>/dev/null || true
   rm -f "$PID_FILE"
+  # Clear remaining queued audio files
+  rm -f "${QUEUE_DIR}/"*.mp3 "${QUEUE_DIR}/"*.wav 2>/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup EXIT TERM INT
 
 IDLE=0
 
@@ -26,8 +30,9 @@ while true; do
 
   if [[ -n "$NEXT" && -f "$NEXT" ]]; then
     IDLE=0
-    # Play audio (blocking)
-    play_audio "$NEXT" 2>/dev/null || true
+    # Play audio in background so signals can interrupt it
+    play_audio "$NEXT" 2>/dev/null &
+    wait $! 2>/dev/null || true
     # Remove after playing
     rm -f "$NEXT"
   else

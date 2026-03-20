@@ -84,12 +84,21 @@ The plugin works without any API key:
 
 Once set up, TTS works automatically. Every time Claude finishes a response, the text is cleaned and spoken aloud.
 
+### Stopping playback
+
+Audio stops automatically in several ways:
+
+- **Press ESC** while Claude is generating — stops current audio and speaks the new response
+- **Submit a new prompt** — any currently playing audio stops immediately
+- **Run `/claude-tts:tts-stop`** — stop audio on demand without disabling TTS
+
 ### Commands
 
 | Command | Description |
 |---------|-------------|
 | `/claude-tts:tts-on` | Enable TTS |
 | `/claude-tts:tts-off` | Disable TTS |
+| `/claude-tts:tts-stop` | Stop current audio playback |
 | `/claude-tts:tts-status` | Show current status and provider |
 | `/claude-tts:tts-setup <provider> [key]` | Configure TTS provider |
 
@@ -134,12 +143,15 @@ If your config has `provider: "say"`, it will automatically be mapped to `local`
 ## How it works
 
 1. Claude finishes a response (Stop hook fires)
-2. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped
-3. A background worker sends the text to your configured provider
-4. If the provider fails, local system TTS is used as fallback
-5. Audio files are queued and played sequentially via the platform audio player
+2. Any previously playing audio is stopped immediately
+3. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped
+4. A background worker sends the text to your configured provider
+5. If the provider fails, local system TTS is used as fallback
+6. Audio files are queued and played sequentially via the platform audio player
 
-The hook exits immediately so Claude Code is never blocked.
+A `UserPromptSubmit` hook also runs on every new prompt, stopping any in-progress playback so audio never talks over your next interaction.
+
+The hooks exit immediately so Claude Code is never blocked.
 
 ## Troubleshooting
 
@@ -154,8 +166,8 @@ The hook exits immediately so Claude Code is never blocked.
 - The plugin falls back to local TTS automatically on API errors
 
 **Audio queue stuck**
-- Kill the daemon: `kill $(cat ${TMPDIR}/claude_tts_queue/daemon.pid)`
-- Clear the queue: `rm -f ${TMPDIR}/claude_tts_queue/*.mp3 ${TMPDIR}/claude_tts_queue/*.wav`
+- Run `/claude-tts:tts-stop` to kill the daemon and clear the queue
+- Or manually: `kill $(cat ${TMPDIR}/claude_tts_queue/daemon.pid) && rm -f ${TMPDIR}/claude_tts_queue/*.mp3 ${TMPDIR}/claude_tts_queue/*.wav`
 
 **Linux: No audio player**
 - Install one: `sudo apt install mpv` (or `ffmpeg` for ffplay, `pulseaudio-utils` for paplay)

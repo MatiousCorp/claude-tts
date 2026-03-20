@@ -18,12 +18,16 @@ if [[ -z "$MESSAGE" ]]; then
   exit 0
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Stop any currently playing TTS before starting new
+"${SCRIPT_DIR}/tts-stop.sh" &>/dev/null || true
+
 # Write message to temp file for the worker
 TEMP_FILE=$(mktemp "${TMPDIR:-/tmp}/claude_tts_msg.XXXXXX")
 echo "$MESSAGE" > "$TEMP_FILE"
 
 # Fork background worker and exit immediately
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 "${SCRIPT_DIR}/tts-worker.sh" "$TEMP_FILE" &>/dev/null & disown
 
 exit 0
