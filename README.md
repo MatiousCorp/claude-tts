@@ -12,6 +12,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | **Amazon Polly** | Good | Paid (free tier available) | AWS CLI configured |
 | **Azure Speech** | Very good | Paid (free tier available) | API key + region |
 | **Edge TTS** | Very good | Free | `pip install edge-tts` |
+| **Kitten TTS** | Good | Free | `pip install KittenTTS soundfile` + `espeak` |
 | **Local TTS** | Basic | Free | Built-in (see below) |
 
 ## Requirements
@@ -54,6 +55,7 @@ Restart Claude Code after installing.
 /claude-tts:tts-setup amazon
 /claude-tts:tts-setup azure your-key-here
 /claude-tts:tts-setup edge
+/claude-tts:tts-setup kitten
 /claude-tts:tts-setup local
 ```
 
@@ -67,6 +69,7 @@ Restart Claude Code after installing.
 | amazon | `Joanna` | `neural` | AWS CLI env creds |
 | azure | `en-US-JennyNeural` | n/a | `Ocp-Apim-Subscription-Key` header |
 | edge | `en-US-AriaNeural` | n/a | none (free) |
+| kitten | `Bella` | n/a | none (free, local) |
 | local | system default | n/a | none |
 
 ### Without an API key
@@ -74,6 +77,7 @@ Restart Claude Code after installing.
 The plugin works without any API key:
 
 - **Edge TTS**: High-quality neural voices via `edge-tts` (`pip install edge-tts`)
+- **Kitten TTS**: Lightweight open-source model (under 25MB, CPU-only) with 8 expressive voices (`pip install KittenTTS soundfile`, plus `espeak` system dep)
 - **Local TTS**: System built-in — macOS `say`, Linux `espeak-ng`/`espeak`/`piper`, Windows PowerShell SAPI
 
 ## Usage

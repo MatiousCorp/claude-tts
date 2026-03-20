@@ -1,5 +1,5 @@
 ---
-description: Set up TTS with a provider (elevenlabs, openai, google, amazon, azure, edge, local)
+description: Set up TTS with a provider (elevenlabs, openai, google, amazon, azure, edge, kitten, local)
 allowed-tools: [Bash]
 argument-hint: <provider> <api-key>
 ---
@@ -21,12 +21,14 @@ If $ARGUMENTS is empty, tell the user:
 - `amazon` — Amazon Polly (uses AWS CLI creds, no key needed)
 - `azure` — Azure Cognitive Services Speech
 - `edge` — Microsoft Edge TTS (free, no key needed)
+- `kitten` — Kitten TTS V0.8 (free, local, no key needed)
 - `local` — System built-in TTS (macOS say / espeak / Windows SAPI)
 
 **Examples:**
 - `/claude-tts:tts-setup elevenlabs sk_abc123`
 - `/claude-tts:tts-setup openai sk-abc123`
 - `/claude-tts:tts-setup edge`
+- `/claude-tts:tts-setup kitten`
 - `/claude-tts:tts-setup local`
 
 Do NOT run any other scripts. Do NOT invent script names. Only run tts-setup.sh.

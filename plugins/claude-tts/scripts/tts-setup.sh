@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$HOME/.claude/claude-tts.local.md"
-VALID_PROVIDERS="elevenlabs openai google amazon azure edge local"
+VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten local"
 
 # Source cross-platform abstraction layer
 source "${PLUGIN_ROOT}/hooks/scripts/platform.sh"
@@ -29,6 +29,7 @@ if [[ -z "$PROVIDER" ]]; then
   echo "  amazon      — Amazon Polly (uses AWS CLI creds)"
   echo "  azure       — Azure Cognitive Services Speech"
   echo "  edge        — Microsoft Edge TTS (free, no key needed)"
+  echo "  kitten      — Kitten TTS V0.8 (free, local, no key needed)"
   echo "  local       — System built-in TTS (free, no key needed)"
   echo ""
   echo "Examples:"
@@ -61,7 +62,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # Require API key for cloud providers
-if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge" && -z "$API_KEY" ]]; then
+if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge" && "$PROVIDER" != "kitten" && -z "$API_KEY" ]]; then
   echo "ERROR: API key required for $PROVIDER"
   echo ""
   case "$PROVIDER" in
@@ -100,6 +101,17 @@ provider: "edge"
 
 Claude TTS configuration. Provider: Microsoft Edge TTS.
 Requires: pip install edge-tts
+EOF
+elif [[ "$PROVIDER" == "kitten" ]]; then
+  cat > "$CONFIG_FILE" << EOF
+---
+provider: "kitten"
+---
+
+Claude TTS configuration. Provider: Kitten TTS V0.8.
+Requires: pip install KittenTTS soundfile
+System dep: espeak (brew install espeak / apt install espeak)
+Voices: Bella, Jasper, Luna, Bruno, Rosie, Hugo, Kiki, Leo
 EOF
 else
   cat > "$CONFIG_FILE" << EOF
@@ -186,6 +198,23 @@ case "$PROVIDER" in
       edge-tts --voice "en-US-AriaNeural" --text "$TEST_TEXT" --write-media "$TEST_FILE" &>/dev/null && HTTP_CODE="200" || HTTP_CODE="000"
     else
       echo "edge-tts not found. Install with: pip install edge-tts"
+      HTTP_CODE="000"
+    fi
+    ;;
+  kitten)
+    TEST_FILE="${QUEUE_DIR}/test_setup.wav"
+    if python3 -c "import kittentts" &>/dev/null; then
+      KITTEN_TEXT="$TEST_TEXT" KITTEN_OUTPUT="$TEST_FILE" \
+        python3 -c "
+import os, soundfile as sf
+from kittentts import KittenTTS
+model = KittenTTS()
+audio = model.generate(text=os.environ['KITTEN_TEXT'], voice='Bella', speed=1.0)
+sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
+" &>/dev/null && HTTP_CODE="200" || HTTP_CODE="000"
+    else
+      echo "KittenTTS not found. Install with: pip install KittenTTS soundfile"
+      echo "System dependency: espeak (brew install espeak / apt install espeak)"
       HTTP_CODE="000"
     fi
     ;;

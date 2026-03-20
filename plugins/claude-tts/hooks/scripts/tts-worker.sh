@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -105,6 +105,9 @@ case "$PROVIDER" in
     ;;
   edge)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="en-US-AriaNeural"
+    ;;
+  kitten)
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="Bella"
     ;;
   local) ;;
 esac
@@ -276,6 +279,25 @@ tts_edge() {
   validate_audio "$AUDIO_FILE"
 }
 
+tts_kitten() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.wav"
+
+  if ! python3 -c "import kittentts" &>/dev/null; then
+    return 1
+  fi
+
+  KITTEN_TEXT="$CLEANED" KITTEN_VOICE="$VOICE_ID" KITTEN_OUTPUT="$AUDIO_FILE" \
+    python3 -c "
+import os, soundfile as sf
+from kittentts import KittenTTS
+model = KittenTTS()
+audio = model.generate(text=os.environ['KITTEN_TEXT'], voice=os.environ['KITTEN_VOICE'], speed=1.0)
+sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
+" &>/dev/null
+
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -305,7 +327,7 @@ validate_audio() {
 }
 
 # --- Provider Dispatch ---
-if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" ) ]]; then
+if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" || "$PROVIDER" == "kitten" ) ]]; then
   case "$PROVIDER" in
     elevenlabs) tts_elevenlabs || USE_FALLBACK=true ;;
     openai)     tts_openai     || USE_FALLBACK=true ;;
@@ -313,6 +335,7 @@ if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PR
     amazon)     tts_amazon     || USE_FALLBACK=true ;;
     azure)      tts_azure      || USE_FALLBACK=true ;;
     edge)       tts_edge       || USE_FALLBACK=true ;;
+    kitten)     tts_kitten     || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else
