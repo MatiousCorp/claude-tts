@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -108,6 +108,10 @@ case "$PROVIDER" in
     ;;
   kitten)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="expr-voice-2-f"
+    ;;
+  mimo)
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="mimo_default"
+    [[ -z "$MODEL_ID" ]] && MODEL_ID="mimo-v2-tts"
     ;;
   local) ;;
 esac
@@ -298,6 +302,42 @@ sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
   validate_audio "$AUDIO_FILE"
 }
 
+tts_mimo() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.wav"
+  local body
+  body=$(jq -n --arg text "$CLEANED" --arg model "$MODEL_ID" --arg voice "$VOICE_ID" '{
+    model: $model,
+    messages: [
+      { role: "assistant", content: $text }
+    ],
+    audio: {
+      format: "wav",
+      voice: $voice
+    }
+  }')
+
+  local tmp_response
+  tmp_response=$(mktemp "${TMPDIR:-/tmp}/claude_tts_mimo.XXXXXX")
+
+  local http_code
+  http_code=$(curl -s -w "%{http_code}" -o "$tmp_response" \
+    --max-time 30 \
+    -X POST "https://api.xiaomimimo.com/v1/chat/completions" \
+    -H "api-key: ${API_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null || echo "000")
+
+  if [[ "$http_code" != "200" ]]; then
+    rm -f "$tmp_response" "$AUDIO_FILE"
+    return 1
+  fi
+
+  # MiMo returns base64-encoded audio in message.audio.data
+  jq -r '.choices[0].message.audio.data' "$tmp_response" 2>/dev/null | base64 -d > "$AUDIO_FILE" 2>/dev/null
+  rm -f "$tmp_response"
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -336,6 +376,7 @@ if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PR
     azure)      tts_azure      || USE_FALLBACK=true ;;
     edge)       tts_edge       || USE_FALLBACK=true ;;
     kitten)     tts_kitten     || USE_FALLBACK=true ;;
+    mimo)       tts_mimo       || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else

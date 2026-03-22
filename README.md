@@ -13,6 +13,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | **Azure Speech** | Very good | Paid (free tier available) | API key + region |
 | **Edge TTS** | Very good | Free | `pip install edge-tts` |
 | **Kitten TTS** | Good | Free | `pip install KittenTTS soundfile` + `espeak` |
+| **MiMo TTS** | Excellent | Free (limited time) | API key |
 | **Local TTS** | Basic | Free | Built-in (see below) |
 
 ## Requirements
@@ -56,6 +57,7 @@ Restart Claude Code after installing.
 /claude-tts:tts-setup azure your-key-here
 /claude-tts:tts-setup edge
 /claude-tts:tts-setup kitten
+/claude-tts:tts-setup mimo your-key-here
 /claude-tts:tts-setup local
 ```
 
@@ -70,6 +72,7 @@ Restart Claude Code after installing.
 | azure | `en-US-JennyNeural` | n/a | `Ocp-Apim-Subscription-Key` header |
 | edge | `en-US-AriaNeural` | n/a | none (free) |
 | kitten | `expr-voice-2-f` | n/a | none (free, local) |
+| mimo | `mimo_default` | `mimo-v2-tts` | `api-key` header |
 | local | system default | n/a | none |
 
 ### Without an API key
@@ -79,6 +82,10 @@ The plugin works without any API key:
 - **Edge TTS**: High-quality neural voices via `edge-tts` (`pip install edge-tts`)
 - **Kitten TTS**: Lightweight open-source model (under 25MB, CPU-only) with 8 expressive voices (`pip install KittenTTS soundfile`, plus `espeak` system dep). Requires Python 3.9+
 - **Local TTS**: System built-in — macOS `say`, Linux `espeak-ng`/`espeak`/`piper`, Windows PowerShell SAPI
+
+### With an API key (free)
+
+- **MiMo TTS**: Xiaomi's MiMo-V2-TTS — highly expressive with contextual emotion awareness, style control, dialect support, and singing capability. Free during limited-time promotion. Get a key at [platform.xiaomimimo.com](https://platform.xiaomimimo.com/#/console/api-keys)
 
 ## Usage
 
