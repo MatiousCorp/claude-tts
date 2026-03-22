@@ -33,7 +33,9 @@ if ! mkdir "$HOOK_LOCK" 2>/dev/null; then
   exit 0
 fi
 echo $$ > "$HOOK_LOCK/pid"
-trap 'rm -rf "$HOOK_LOCK"' EXIT
+# Do NOT remove lock on exit — it must persist until the worker finishes
+# to prevent duplicate TTS from concurrent hook invocations.
+trap - EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -46,5 +48,9 @@ echo "$MESSAGE" > "$TEMP_FILE"
 
 # Fork background worker and exit immediately
 "${SCRIPT_DIR}/tts-worker.sh" "$TEMP_FILE" &>/dev/null & disown
+WORKER_PID=$!
+
+# Update lock with worker PID so concurrent invocations see the worker is alive
+echo "$WORKER_PID" > "$HOOK_LOCK/pid"
 
 exit 0

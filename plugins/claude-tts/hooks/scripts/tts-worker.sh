@@ -471,4 +471,7 @@ if [[ "$DAEMON_RUNNING" == false ]]; then
   "${SCRIPT_DIR}/tts-queue-daemon.sh" &>/dev/null & disown
 fi
 
+# Release hook lock now that audio is queued
+rm -rf "${TMPDIR:-/tmp}/claude_tts_hook.lock" 2>/dev/null || true
+
 exit 0

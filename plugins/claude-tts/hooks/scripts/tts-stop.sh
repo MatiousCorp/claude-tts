@@ -28,4 +28,7 @@ rm -rf "${QUEUE_DIR}/.daemon_lock" 2>/dev/null || true
 # Use find instead of glob to avoid zsh nomatch errors
 find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" -o -name ".seq" \) -delete 2>/dev/null || true
 
+# Release hook lock since we killed the worker
+rm -rf "${TMPDIR:-/tmp}/claude_tts_hook.lock" 2>/dev/null || true
+
 exit 0
