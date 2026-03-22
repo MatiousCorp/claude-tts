@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, fish, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -116,6 +116,9 @@ case "$PROVIDER" in
   tada)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="$HOME/.claude/tada-reference.wav"
     [[ -z "$MODEL_ID" ]] && MODEL_ID="tada-1b"
+    ;;
+  fish)
+    [[ -z "$MODEL_ID" ]] && MODEL_ID="s2-pro"
     ;;
   local) ;;
 esac
@@ -400,6 +403,38 @@ torchaudio.save(output_path, wav, 24000)
   validate_audio "$AUDIO_FILE"
 }
 
+tts_fish() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.mp3"
+  local body
+  if [[ -n "$VOICE_ID" ]]; then
+    body=$(jq -n --arg text "$CLEANED" --arg ref "$VOICE_ID" '{
+      text: $text,
+      format: "mp3",
+      reference_id: $ref
+    }')
+  else
+    body=$(jq -n --arg text "$CLEANED" '{
+      text: $text,
+      format: "mp3"
+    }')
+  fi
+
+  local http_code
+  http_code=$(curl -s -w "%{http_code}" -o "$AUDIO_FILE" \
+    --max-time 30 \
+    -X POST "https://api.fish.audio/v1/tts" \
+    -H "Authorization: Bearer ${API_KEY}" \
+    -H "Content-Type: application/json" \
+    -H "model: ${MODEL_ID}" \
+    -d "$body" 2>/dev/null || echo "000")
+
+  if [[ "$http_code" != "200" ]]; then
+    rm -f "$AUDIO_FILE"
+    return 1
+  fi
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -440,6 +475,7 @@ if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PR
     kitten)     tts_kitten     || USE_FALLBACK=true ;;
     mimo)       tts_mimo       || USE_FALLBACK=true ;;
     tada)       tts_tada       || USE_FALLBACK=true ;;
+    fish)       tts_fish       || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else

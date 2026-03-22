@@ -18,23 +18,31 @@ if [[ -z "$MESSAGE" ]]; then
   exit 0
 fi
 
-# Prevent duplicate execution (e.g., plugin registered in multiple locations)
+# Content-based deduplication: hash the message and use atomic mkdir to
+# prevent the same text from being spoken twice (e.g., if Stop fires twice
+# for the same turn, or the plugin is registered in multiple locations).
+MSG_HASH=$(printf '%s' "$MESSAGE" | md5 2>/dev/null || printf '%s' "$MESSAGE" | md5sum 2>/dev/null | cut -d' ' -f1)
+DEDUP_DIR="${TMPDIR:-/tmp}/claude_tts_dedup_${MSG_HASH}"
+if ! mkdir "$DEDUP_DIR" 2>/dev/null; then
+  # Another invocation already claimed this exact message
+  exit 0
+fi
+# Clean up previous dedup markers (keep only current)
+find "${TMPDIR:-/tmp}" -maxdepth 1 -name "claude_tts_dedup_*" -not -name "claude_tts_dedup_${MSG_HASH}" -exec rm -rf {} + 2>/dev/null || true
+
+# Process-level lock to serialize hook execution
 HOOK_LOCK="${TMPDIR:-/tmp}/claude_tts_hook.lock"
 if [[ -d "$HOOK_LOCK" ]]; then
-  # Check if the lock holder is still alive
   LOCK_PID=$(cat "$HOOK_LOCK/pid" 2>/dev/null || echo "")
   if [[ -n "$LOCK_PID" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
     exit 0
   fi
-  # Stale lock — remove it
   rm -rf "$HOOK_LOCK"
 fi
 if ! mkdir "$HOOK_LOCK" 2>/dev/null; then
   exit 0
 fi
 echo $$ > "$HOOK_LOCK/pid"
-# Do NOT remove lock on exit — it must persist until the worker finishes
-# to prevent duplicate TTS from concurrent hook invocations.
 trap - EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

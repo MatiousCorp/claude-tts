@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$HOME/.claude/claude-tts.local.md"
-VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten mimo tada local"
+VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten mimo tada fish local"
 
 # Source cross-platform abstraction layer
 source "${PLUGIN_ROOT}/hooks/scripts/platform.sh"
@@ -32,6 +32,7 @@ if [[ -z "$PROVIDER" ]]; then
   echo "  kitten      — Kitten TTS V0.8 (free, local, no key needed)"
   echo "  mimo        — Xiaomi MiMo-V2-TTS (expressive, free limited time)"
   echo "  tada        — Hume TADA (open-source, GPU recommended, optional voice cloning)"
+  echo "  fish        — Fish Audio TTS (high quality, multilingual, voice cloning)"
   echo "  local       — System built-in TTS (free, no key needed)"
   echo ""
   echo "Examples:"
@@ -74,6 +75,7 @@ if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge"
     google)     echo "Get your key at: https://console.cloud.google.com/apis/credentials" ;;
     azure)      echo "Get your key at: https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub" ;;
     mimo)       echo "Get your key at: https://platform.xiaomimimo.com/#/console/api-keys" ;;
+    fish)       echo "Get your key at: https://fish.audio (Dashboard → API Keys)" ;;
   esac
   exit 1
 fi
@@ -130,6 +132,20 @@ model_id: "mimo-v2-tts"
 Claude TTS configuration. Provider: Xiaomi MiMo-V2-TTS.
 Voices: mimo_default, default_zh (Chinese female), default_en (English female)
 Style: prefix text with <style>Happy</style> etc. for expressive speech.
+EOF
+elif [[ "$PROVIDER" == "fish" ]]; then
+  cat > "$CONFIG_FILE" << EOF
+---
+provider: "fish"
+api_key: "${API_KEY}"
+voice_id: ""
+model_id: "s2-pro"
+---
+
+Claude TTS configuration. Provider: Fish Audio.
+voice_id: reference voice ID (leave empty for default, or use a voice ID from fish.audio)
+model_id: s2-pro (flagship) or s2 (faster)
+Supports 80+ languages, voice cloning, and emotional tags like [excited] [whisper].
 EOF
 elif [[ "$PROVIDER" == "tada" ]]; then
   # Second arg (API_KEY) is repurposed as reference audio path for TADA
@@ -304,6 +320,15 @@ sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
       jq -r '.choices[0].message.audio.data' "$TMP_RESP" 2>/dev/null | base64 -d > "$TEST_FILE" 2>/dev/null
     fi
     rm -f "$TMP_RESP"
+    ;;
+  fish)
+    BODY=$(jq -n --arg text "$TEST_TEXT" '{text: $text, format: "mp3"}')
+    HTTP_CODE=$(curl -s -w "%{http_code}" -o "$TEST_FILE" --max-time 15 \
+      -X POST "https://api.fish.audio/v1/tts" \
+      -H "Authorization: Bearer ${API_KEY}" \
+      -H "Content-Type: application/json" \
+      -H "model: s2-pro" \
+      -d "$BODY" 2>/dev/null || echo "000")
     ;;
   tada)
     TEST_FILE="${QUEUE_DIR}/test_setup.wav"

@@ -1,8 +1,8 @@
 {
   "name": "claude-tts",
-  "version": "2.3.1",
-  "description": "Text-to-speech for Claude Code responses with multi-provider support (ElevenLabs, OpenAI, Google, Amazon Polly, Azure, Edge TTS, Kitten TTS, MiMo TTS, Hume TADA, local system TTS)",
+  "version": "2.4.0",
+  "description": "Text-to-speech for Claude Code responses with multi-provider support (ElevenLabs, OpenAI, Google, Amazon Polly, Azure, Edge TTS, Kitten TTS, MiMo TTS, Hume TADA, Fish Audio, local system TTS)",
   "author": { "name": "Youssef" },
   "license": "MIT",
-  "keywords": ["tts", "text-to-speech", "voice", "audio", "speech", "elevenlabs", "openai", "google", "azure", "polly", "edge", "kitten", "mimo", "xiaomi", "tada", "hume"]
+  "keywords": ["tts", "text-to-speech", "voice", "audio", "speech", "elevenlabs", "openai", "google", "azure", "polly", "edge", "kitten", "mimo", "xiaomi", "tada", "hume", "fish", "fish-speech", "fish-audio"]
 }
