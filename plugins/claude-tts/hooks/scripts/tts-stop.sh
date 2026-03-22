@@ -24,6 +24,22 @@ fi
 # Remove daemon lock so a new daemon can start
 rm -rf "${QUEUE_DIR}/.daemon_lock" 2>/dev/null || true
 
+# Kill audio player and TTS generator processes directly.
+# pkill -P only kills direct children; grandchild/orphan processes survive.
+# For example, say (child of killed worker) or afplay (grandchild of daemon
+# via backgrounded subshell) would keep running without this.
+case "$(uname -s)" in
+  Darwin*)
+    pkill -x afplay 2>/dev/null || true
+    pkill -x say 2>/dev/null || true
+    ;;
+  Linux*)
+    for p in mpv ffplay paplay aplay espeak-ng espeak piper; do
+      pkill -x "$p" 2>/dev/null || true
+    done
+    ;;
+esac
+
 # Clear remaining queued audio files and reset sequence counter
 # Use find instead of glob to avoid zsh nomatch errors
 find "${QUEUE_DIR}" -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.wav" -o -name ".seq" \) -delete 2>/dev/null || true
