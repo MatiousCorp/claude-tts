@@ -10,8 +10,8 @@
   "plugins": [
     {
       "name": "claude-tts",
-      "description": "Text-to-speech for Claude Code responses with multi-provider support (ElevenLabs, OpenAI, Google, Amazon Polly, Azure, Edge TTS, Kitten TTS, MiMo TTS, local system TTS)",
-      "version": "2.3.0",
+      "description": "Text-to-speech for Claude Code responses with multi-provider support (ElevenLabs, OpenAI, Google, Amazon Polly, Azure, Edge TTS, Kitten TTS, MiMo TTS, Hume TADA, local system TTS)",
+      "version": "2.3.1",
       "author": {
         "name": "Youssef"
       },
