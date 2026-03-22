@@ -13,6 +13,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | **Azure Speech** | Very good | Paid (free tier available) | API key + region |
 | **Edge TTS** | Very good | Free | `pip install edge-tts` |
 | **Kitten TTS** | Good | Free | `pip install KittenTTS soundfile` + `espeak` |
+| **Fish Audio** | Excellent | Paid (billing required) | API key |
 | **MiMo TTS** | Excellent | Free (limited time) | API key |
 | **Local TTS** | Basic | Free | Built-in (see below) |
 
@@ -58,6 +59,7 @@ Restart Claude Code after installing.
 /claude-tts:tts-setup edge
 /claude-tts:tts-setup kitten
 /claude-tts:tts-setup mimo your-key-here
+/claude-tts:tts-setup fish your-key-here
 /claude-tts:tts-setup tada
 /claude-tts:tts-setup local
 ```
@@ -74,6 +76,7 @@ Restart Claude Code after installing.
 | edge | `en-US-AriaNeural` | n/a | none (free) |
 | kitten | `expr-voice-2-f` | n/a | none (free, local) |
 | mimo | `mimo_default` | `mimo-v2-tts` | `api-key` header |
+| fish | (optional reference ID) | `s2-pro` | `Authorization: Bearer` token |
 | tada | reference WAV path | `tada-1b` | none (open-source) |
 | local | system default | n/a | none |
 
@@ -85,6 +88,10 @@ The plugin works without any API key:
 - **Kitten TTS**: Lightweight open-source model (under 25MB, CPU-only) with 8 expressive voices (`pip install KittenTTS soundfile`, plus `espeak` system dep). Requires Python 3.9+
 - **TADA**: Hume AI's open-source voice cloning model (`pip install hume-tada`). Works out of the box; optionally provide a reference WAV to clone a specific voice. GPU recommended (CUDA or Apple MPS); CPU works but is slow. Models: `tada-1b` (English) or `tada-3b-ml` (multilingual)
 - **Local TTS**: System built-in — macOS `say`, Linux `espeak-ng`/`espeak`/`piper`, Windows PowerShell SAPI
+
+### With an API key (paid)
+
+- **Fish Audio**: High-quality multilingual TTS with voice cloning support. Requires a paid account with billing enabled — there is no free tier. Optionally provide a reference voice ID to clone a specific voice. Get a key at [fish.audio](https://fish.audio/). Model: `s2-pro`
 
 ### With an API key (free)
 
