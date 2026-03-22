@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -112,6 +112,10 @@ case "$PROVIDER" in
   mimo)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="mimo_default"
     [[ -z "$MODEL_ID" ]] && MODEL_ID="mimo-v2-tts"
+    ;;
+  tada)
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="$HOME/.claude/tada-reference.wav"
+    [[ -z "$MODEL_ID" ]] && MODEL_ID="tada-1b"
     ;;
   local) ;;
 esac
@@ -338,6 +342,64 @@ tts_mimo() {
   validate_audio "$AUDIO_FILE"
 }
 
+tts_tada() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.wav"
+
+  if ! python3 -c "import tada" &>/dev/null; then
+    return 1
+  fi
+
+  local ref_audio="$VOICE_ID"
+  local cache_path="$HOME/.claude/tada-prompt-cache.pt"
+
+  TADA_TEXT="$CLEANED" TADA_OUTPUT="$AUDIO_FILE" TADA_MODEL="$MODEL_ID" \
+    TADA_REF_AUDIO="$ref_audio" TADA_CACHE="$cache_path" \
+    python3 -c "
+import os, sys, torch, torchaudio
+from tada.modules.encoder import EncoderOutput
+from tada.modules.tada import TadaForCausalLM
+
+text = os.environ['TADA_TEXT']
+output_path = os.environ['TADA_OUTPUT']
+model_name = 'HumeAI/' + os.environ.get('TADA_MODEL', 'tada-1b')
+ref_audio_path = os.environ.get('TADA_REF_AUDIO', '')
+cache_path = os.environ.get('TADA_CACHE', '')
+
+if torch.cuda.is_available():
+    device, dtype = 'cuda', torch.bfloat16
+elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    device, dtype = 'mps', torch.float32
+else:
+    device, dtype = 'cpu', torch.float32
+
+if cache_path and os.path.exists(cache_path):
+    prompt = EncoderOutput.load(cache_path, device=device)
+else:
+    from tada.modules.encoder import Encoder
+    if not ref_audio_path or not os.path.exists(ref_audio_path):
+        sys.exit(1)
+    encoder = Encoder.from_pretrained('HumeAI/tada-codec', subfolder='encoder').to(device)
+    audio, sr = torchaudio.load(ref_audio_path)
+    audio = audio.to(device)
+    prompt = encoder(audio, sample_rate=sr)
+    if cache_path:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        prompt.save(cache_path)
+    del encoder
+
+model = TadaForCausalLM.from_pretrained(model_name, torch_dtype=dtype).to(device)
+if hasattr(model, 'decoder'):
+    model.decoder.to(device)
+output = model.generate(prompt=prompt, text=text)
+wav = output.audio[0].detach().cpu().float()
+if wav.dim() == 1:
+    wav = wav.unsqueeze(0)
+torchaudio.save(output_path, wav, 24000)
+" &>/dev/null
+
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -367,7 +429,7 @@ validate_audio() {
 }
 
 # --- Provider Dispatch ---
-if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" || "$PROVIDER" == "kitten" ) ]]; then
+if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" || "$PROVIDER" == "kitten" || "$PROVIDER" == "tada" ) ]]; then
   case "$PROVIDER" in
     elevenlabs) tts_elevenlabs || USE_FALLBACK=true ;;
     openai)     tts_openai     || USE_FALLBACK=true ;;
@@ -377,6 +439,7 @@ if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PR
     edge)       tts_edge       || USE_FALLBACK=true ;;
     kitten)     tts_kitten     || USE_FALLBACK=true ;;
     mimo)       tts_mimo       || USE_FALLBACK=true ;;
+    tada)       tts_tada       || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else
