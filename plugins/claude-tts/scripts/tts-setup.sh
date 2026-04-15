@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$HOME/.claude/claude-tts.local.md"
-VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten mimo tada fish local"
+VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten mimo tada fish gemini local"
 
 # Source cross-platform abstraction layer
 source "${PLUGIN_ROOT}/hooks/scripts/platform.sh"
@@ -33,6 +33,7 @@ if [[ -z "$PROVIDER" ]]; then
   echo "  mimo        — Xiaomi MiMo-V2-TTS (expressive, free limited time)"
   echo "  tada        — Hume TADA (open-source, GPU recommended, optional voice cloning)"
   echo "  fish        — Fish Audio TTS (high quality, multilingual, voice cloning)"
+  echo "  gemini      — Google Gemini 3.1 Flash TTS (70+ languages, multi-speaker)"
   echo "  local       — System built-in TTS (free, no key needed)"
   echo ""
   echo "Examples:"
@@ -76,6 +77,7 @@ if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge"
     azure)      echo "Get your key at: https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub" ;;
     mimo)       echo "Get your key at: https://platform.xiaomimimo.com/#/console/api-keys" ;;
     fish)       echo "Get your key at: https://fish.audio (Dashboard → API Keys)" ;;
+    gemini)     echo "Get your key at: https://aistudio.google.com/apikey" ;;
   esac
   exit 1
 fi
@@ -146,6 +148,20 @@ Claude TTS configuration. Provider: Fish Audio.
 voice_id: reference voice ID (leave empty for default, or use a voice ID from fish.audio)
 model_id: s2-pro (flagship) or s2 (faster)
 Supports 80+ languages, voice cloning, and emotional tags like [excited] [whisper].
+EOF
+elif [[ "$PROVIDER" == "gemini" ]]; then
+  cat > "$CONFIG_FILE" << EOF
+---
+provider: "gemini"
+api_key: "${API_KEY}"
+voice_id: "Kore"
+model_id: "gemini-3.1-flash-tts-preview"
+---
+
+Claude TTS configuration. Provider: Google Gemini 3.1 Flash TTS.
+voice_id: Kore (default). Available voices: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat
+model_id: gemini-3.1-flash-tts-preview (latest) or gemini-2.5-flash-preview-tts or gemini-2.5-pro-preview-tts
+Supports 70+ languages, multi-speaker dialogue, and audio tags like [whispers] [laughs].
 EOF
 elif [[ "$PROVIDER" == "tada" ]]; then
   # Second arg (API_KEY) is repurposed as reference audio path for TADA
@@ -329,6 +345,43 @@ sf.write(os.environ['KITTEN_OUTPUT'], audio, 24000)
       -H "Content-Type: application/json" \
       -H "model: s2-pro" \
       -d "$BODY" 2>/dev/null || echo "000")
+    ;;
+  gemini)
+    TEST_FILE="${QUEUE_DIR}/test_setup.wav"
+    TMP_RESP=$(mktemp "${TMPDIR:-/tmp}/claude_tts_gemini_test.XXXXXX")
+    BODY=$(jq -n --arg text "$TEST_TEXT" '{
+      contents: [{ parts: [{ text: $text }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: "Kore" }
+          }
+        }
+      }
+    }')
+    HTTP_CODE=$(curl -s -w "%{http_code}" -o "$TMP_RESP" --max-time 15 \
+      -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent" \
+      -H "x-goog-api-key: ${API_KEY}" -H "Content-Type: application/json" \
+      -d "$BODY" 2>/dev/null || echo "000")
+    if [[ "$HTTP_CODE" == "200" ]]; then
+      PCM_TMP=$(mktemp "${TMPDIR:-/tmp}/claude_tts_pcm_test.XXXXXX")
+      jq -r '.candidates[0].content.parts[0].inlineData.data' "$TMP_RESP" 2>/dev/null | base64 -d > "$PCM_TMP" 2>/dev/null
+      python3 -c "
+import struct, sys
+pcm = open(sys.argv[1], 'rb').read()
+with open(sys.argv[2], 'wb') as f:
+    f.write(b'RIFF')
+    f.write(struct.pack('<I', len(pcm) + 36))
+    f.write(b'WAVEfmt ')
+    f.write(struct.pack('<IHHIIHH', 16, 1, 1, 24000, 48000, 2, 16))
+    f.write(b'data')
+    f.write(struct.pack('<I', len(pcm)))
+    f.write(pcm)
+" "$PCM_TMP" "$TEST_FILE" 2>/dev/null
+      rm -f "$PCM_TMP"
+    fi
+    rm -f "$TMP_RESP"
     ;;
   tada)
     TEST_FILE="${QUEUE_DIR}/test_setup.wav"

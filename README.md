@@ -14,6 +14,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | **Edge TTS** | Very good | Free | `pip install edge-tts` |
 | **Kitten TTS** | Good | Free | `pip install KittenTTS soundfile` + `espeak` |
 | **Fish Audio** | Excellent | Paid (billing required) | API key |
+| **Gemini TTS** | Excellent | Paid (free tier available) | API key |
 | **MiMo TTS** | Excellent | Free (limited time) | API key |
 | **Local TTS** | Basic | Free | Built-in (see below) |
 
@@ -60,6 +61,7 @@ Restart Claude Code after installing.
 /claude-tts:tts-setup kitten
 /claude-tts:tts-setup mimo your-key-here
 /claude-tts:tts-setup fish your-key-here
+/claude-tts:tts-setup gemini AIza...
 /claude-tts:tts-setup tada
 /claude-tts:tts-setup local
 ```
@@ -77,6 +79,7 @@ Restart Claude Code after installing.
 | kitten | `expr-voice-2-f` | n/a | none (free, local) |
 | mimo | `mimo_default` | `mimo-v2-tts` | `api-key` header |
 | fish | (optional reference ID) | `s2-pro` | `Authorization: Bearer` token |
+| gemini | `Kore` | `gemini-3.1-flash-tts-preview` | `x-goog-api-key` header |
 | tada | reference WAV path | `tada-1b` | none (open-source) |
 | local | system default | n/a | none |
 
@@ -93,8 +96,9 @@ The plugin works without any API key:
 
 - **Fish Audio**: High-quality multilingual TTS with voice cloning support. Requires a paid account with billing enabled — there is no free tier. Optionally provide a reference voice ID to clone a specific voice. Get a key at [fish.audio](https://fish.audio/). Model: `s2-pro`
 
-### With an API key (free)
+### With an API key (free tier)
 
+- **Gemini TTS**: Google's Gemini 3.1 Flash TTS — 30 built-in voices, 70+ languages, multi-speaker dialogue, and audio tags for style control (`[whispers]`, `[laughs]`). Free tier available. Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Models: `gemini-3.1-flash-tts-preview` (latest), `gemini-2.5-flash-preview-tts`, `gemini-2.5-pro-preview-tts`
 - **MiMo TTS**: Xiaomi's MiMo-V2-TTS — highly expressive with contextual emotion awareness, style control, dialect support, and singing capability. Free during limited-time promotion. Get a key at [platform.xiaomimimo.com](https://platform.xiaomimimo.com/#/console/api-keys)
 
 ## Usage

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, fish, local (system TTS fallback)
+# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, fish, gemini, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -119,6 +119,10 @@ case "$PROVIDER" in
     ;;
   fish)
     [[ -z "$MODEL_ID" ]] && MODEL_ID="s2-pro"
+    ;;
+  gemini)
+    [[ -z "$VOICE_ID" ]] && VOICE_ID="Kore"
+    [[ -z "$MODEL_ID" ]] && MODEL_ID="gemini-3.1-flash-tts-preview"
     ;;
   local) ;;
 esac
@@ -435,6 +439,67 @@ tts_fish() {
   validate_audio "$AUDIO_FILE"
 }
 
+tts_gemini() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.wav"
+  local body
+  body=$(jq -n --arg text "$CLEANED" --arg voice "$VOICE_ID" '{
+    contents: [{ parts: [{ text: $text }] }],
+    generationConfig: {
+      responseModalities: ["AUDIO"],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: $voice }
+        }
+      }
+    }
+  }')
+
+  local tmp_response
+  tmp_response=$(mktemp "${TMPDIR:-/tmp}/claude_tts_gemini.XXXXXX")
+
+  local http_code
+  http_code=$(curl -s -w "%{http_code}" -o "$tmp_response" \
+    --max-time 30 \
+    -X POST "https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent" \
+    -H "x-goog-api-key: ${API_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null || echo "000")
+
+  if [[ "$http_code" != "200" ]]; then
+    rm -f "$tmp_response" "$AUDIO_FILE"
+    return 1
+  fi
+
+  # Gemini returns base64-encoded PCM (s16le, 24kHz, mono) — wrap in WAV
+  local pcm_file
+  pcm_file=$(mktemp "${TMPDIR:-/tmp}/claude_tts_pcm.XXXXXX")
+  jq -r '.candidates[0].content.parts[0].inlineData.data' "$tmp_response" 2>/dev/null | base64 -d > "$pcm_file" 2>/dev/null
+  rm -f "$tmp_response"
+
+  local pcm_size
+  pcm_size=$(file_size "$pcm_file")
+  if [[ "$pcm_size" -lt 100 ]]; then
+    rm -f "$pcm_file" "$AUDIO_FILE"
+    return 1
+  fi
+
+  python3 -c "
+import struct, sys
+pcm = open(sys.argv[1], 'rb').read()
+with open(sys.argv[2], 'wb') as f:
+    f.write(b'RIFF')
+    f.write(struct.pack('<I', len(pcm) + 36))
+    f.write(b'WAVEfmt ')
+    f.write(struct.pack('<IHHIIHH', 16, 1, 1, 24000, 48000, 2, 16))
+    f.write(b'data')
+    f.write(struct.pack('<I', len(pcm)))
+    f.write(pcm)
+" "$pcm_file" "$AUDIO_FILE" 2>/dev/null
+  rm -f "$pcm_file"
+
+  validate_audio "$AUDIO_FILE"
+}
+
 tts_local_fallback() {
   if ! check_local_tts; then
     return 1
@@ -476,6 +541,7 @@ if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PR
     mimo)       tts_mimo       || USE_FALLBACK=true ;;
     tada)       tts_tada       || USE_FALLBACK=true ;;
     fish)       tts_fish       || USE_FALLBACK=true ;;
+    gemini)     tts_gemini     || USE_FALLBACK=true ;;
     *)          USE_FALLBACK=true ;;
   esac
 else

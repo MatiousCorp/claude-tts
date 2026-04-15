@@ -1,5 +1,5 @@
 ---
-description: Set up TTS with a provider (elevenlabs, openai, google, amazon, azure, edge, kitten, tada, fish, local)
+description: Set up TTS with a provider (elevenlabs, openai, google, amazon, azure, edge, kitten, tada, fish, gemini, local)
 allowed-tools: [Bash]
 argument-hint: <provider> <api-key>
 ---
@@ -24,6 +24,7 @@ If $ARGUMENTS is empty, tell the user:
 - `kitten` — Kitten TTS V0.8 (free, local, no key needed)
 - `tada` — Hume TADA (open-source, GPU recommended, optional voice cloning)
 - `fish` — Fish Audio TTS (high quality, multilingual, voice cloning)
+- `gemini` — Google Gemini 3.1 Flash TTS (70+ languages, multi-speaker)
 - `local` — System built-in TTS (macOS say / espeak / Windows SAPI)
 
 **Examples:**
