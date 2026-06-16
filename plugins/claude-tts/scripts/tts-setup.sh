@@ -6,7 +6,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_FILE="$HOME/.claude/claude-tts.local.md"
-VALID_PROVIDERS="elevenlabs openai google amazon azure edge kitten mimo tada fish gemini local"
+VALID_PROVIDERS="elevenlabs 60db openai google amazon azure edge kitten mimo tada fish gemini local"
 
 # Source cross-platform abstraction layer
 source "${PLUGIN_ROOT}/hooks/scripts/platform.sh"
@@ -24,6 +24,7 @@ if [[ -z "$PROVIDER" ]]; then
   echo ""
   echo "Providers:"
   echo "  elevenlabs  — ElevenLabs TTS (high quality)"
+  echo "  60db        — 60dB TTS (high quality, voice cloning)"
   echo "  openai      — OpenAI TTS"
   echo "  google      — Google Cloud Text-to-Speech"
   echo "  amazon      — Amazon Polly (uses AWS CLI creds)"
@@ -72,6 +73,7 @@ if [[ "$PROVIDER" != "local" && "$PROVIDER" != "amazon" && "$PROVIDER" != "edge"
   echo ""
   case "$PROVIDER" in
     elevenlabs) echo "Get your key at: https://elevenlabs.io/app/settings/api-keys" ;;
+    60db)       echo "Get your key at: https://60db.ai (Dashboard → API Keys)" ;;
     openai)     echo "Get your key at: https://platform.openai.com/api-keys" ;;
     google)     echo "Get your key at: https://console.cloud.google.com/apis/credentials" ;;
     azure)      echo "Get your key at: https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub" ;;
@@ -194,6 +196,20 @@ voice_id: path to reference WAV file (voice to clone)
 model_id: tada-1b (English, smaller) or tada-3b-ml (multilingual, larger)
 GPU recommended (CUDA or Apple MPS). CPU works but is slow.
 EOF
+elif [[ "$PROVIDER" == "60db" ]]; then
+  cat > "$CONFIG_FILE" << EOF
+---
+provider: "60db"
+api_key: "${API_KEY}"
+voice_id: ""
+---
+
+Claude TTS configuration. Provider: 60dB.
+voice_id: leave empty to use your account's system default, or paste a
+          voice_id (UUID) from your 60dB voice library to use a specific voice.
+          List your voices: GET https://api.60db.ai/myvoices
+Returns high-quality MP3; supports voice cloning.
+EOF
 else
   cat > "$CONFIG_FILE" << EOF
 ---
@@ -234,6 +250,18 @@ case "$PROVIDER" in
       -X POST "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM" \
       -H "xi-api-key: ${API_KEY}" -H "Content-Type: application/json" \
       -d "$BODY" 2>/dev/null || echo "000")
+    ;;
+  60db)
+    TMP_RESP=$(mktemp "${TMPDIR:-/tmp}/claude_tts_60db_test.XXXXXX")
+    BODY=$(jq -n --arg text "$TEST_TEXT" '{text: $text, output_format: "mp3"}')
+    HTTP_CODE=$(curl -s -w "%{http_code}" -o "$TMP_RESP" --max-time 15 \
+      -X POST "https://api.60db.ai/tts-synthesize" \
+      -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" \
+      -d "$BODY" 2>/dev/null || echo "000")
+    if [[ "$HTTP_CODE" == "200" ]]; then
+      jq -r '.audio_base64' "$TMP_RESP" 2>/dev/null | base64 -d > "$TEST_FILE" 2>/dev/null
+    fi
+    rm -f "$TMP_RESP"
     ;;
   openai)
     BODY=$(jq -n --arg text "$TEST_TEXT" '{model: "tts-1", input: $text, voice: "alloy", response_format: "mp3"}')
