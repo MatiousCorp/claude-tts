@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tts-worker.sh — Background worker: clean text, call TTS provider, queue audio.
-# Supports: elevenlabs, openai, google, amazon, azure, edge, kitten, mimo, tada, fish, gemini, local (system TTS fallback)
+# Supports: elevenlabs, 60db, openai, google, amazon, azure, edge, kitten, mimo, tada, fish, gemini, local (system TTS fallback)
 # Usage: tts-worker.sh <temp-message-file>
 
 set -uo pipefail
@@ -87,6 +87,9 @@ case "$PROVIDER" in
   elevenlabs)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="21m00Tcm4TlvDq8ikWAM"
     [[ -z "$MODEL_ID" ]] && MODEL_ID="eleven_flash_v2_5"
+    ;;
+  60db)
+    # voice_id optional (server uses system default when empty); no model_id
     ;;
   openai)
     [[ -z "$VOICE_ID" ]] && VOICE_ID="alloy"
@@ -181,6 +184,45 @@ tts_elevenlabs() {
     rm -f "$AUDIO_FILE"
     return 1
   fi
+  validate_audio "$AUDIO_FILE"
+}
+
+tts_60db() {
+  AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.mp3"
+  local body
+  # voice_id is optional; omit it so 60dB uses the account's system default
+  if [[ -n "$VOICE_ID" ]]; then
+    body=$(jq -n --arg text "$CLEANED" --arg voice "$VOICE_ID" '{
+      text: $text,
+      voice_id: $voice,
+      output_format: "mp3"
+    }')
+  else
+    body=$(jq -n --arg text "$CLEANED" '{
+      text: $text,
+      output_format: "mp3"
+    }')
+  fi
+
+  local tmp_response
+  tmp_response=$(mktemp "${TMPDIR:-/tmp}/claude_tts_60db.XXXXXX")
+
+  local http_code
+  http_code=$(curl -s -w "%{http_code}" -o "$tmp_response" \
+    --max-time 30 \
+    -X POST "https://api.60db.ai/tts-synthesize" \
+    -H "Authorization: Bearer ${API_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null || echo "000")
+
+  if [[ "$http_code" != "200" ]]; then
+    rm -f "$tmp_response" "$AUDIO_FILE"
+    return 1
+  fi
+
+  # 60dB returns base64-encoded audio in the audio_base64 field
+  jq -r '.audio_base64' "$tmp_response" 2>/dev/null | base64 -d > "$AUDIO_FILE" 2>/dev/null
+  rm -f "$tmp_response"
   validate_audio "$AUDIO_FILE"
 }
 
@@ -532,6 +574,7 @@ validate_audio() {
 if [[ "$PROVIDER" != "local" && ( -n "$API_KEY" || "$PROVIDER" == "edge" || "$PROVIDER" == "amazon" || "$PROVIDER" == "kitten" || "$PROVIDER" == "tada" ) ]]; then
   case "$PROVIDER" in
     elevenlabs) tts_elevenlabs || USE_FALLBACK=true ;;
+    60db)       tts_60db       || USE_FALLBACK=true ;;
     openai)     tts_openai     || USE_FALLBACK=true ;;
     google)     tts_google     || USE_FALLBACK=true ;;
     amazon)     tts_amazon     || USE_FALLBACK=true ;;

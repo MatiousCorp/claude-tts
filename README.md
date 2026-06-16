@@ -7,6 +7,7 @@ Text-to-speech plugin for Claude Code. Automatically speaks Claude's responses a
 | Provider | Quality | Cost | Requirements |
 |----------|---------|------|-------------|
 | **ElevenLabs** | Excellent | Paid | API key |
+| **60dB** | Excellent | Paid | API key |
 | **OpenAI** | Very good | Paid | API key |
 | **Google Cloud** | Very good | Paid (free tier available) | API key |
 | **Amazon Polly** | Good | Paid (free tier available) | AWS CLI configured |
@@ -53,6 +54,7 @@ Restart Claude Code after installing.
 
 ```
 /claude-tts:tts-setup elevenlabs sk_abc123
+/claude-tts:tts-setup 60db your-key-here
 /claude-tts:tts-setup openai sk-abc123
 /claude-tts:tts-setup google AIza...
 /claude-tts:tts-setup amazon
@@ -71,6 +73,7 @@ Restart Claude Code after installing.
 | Provider | Default voice | Default model | Auth |
 |----------|---------------|---------------|------|
 | elevenlabs | Rachel (`21m00Tcm4TlvDq8ikWAM`) | `eleven_flash_v2_5` | `xi-api-key` header |
+| 60db | system default (optional UUID) | n/a | `Authorization: Bearer` token |
 | openai | `alloy` | `tts-1` | `Bearer` token |
 | google | `en-US-Neural2-F` | n/a | `X-Goog-Api-Key` header |
 | amazon | `Joanna` | `neural` | AWS CLI env creds |
@@ -95,6 +98,7 @@ The plugin works without any API key:
 ### With an API key (paid)
 
 - **Fish Audio**: High-quality multilingual TTS with voice cloning support. Requires a paid account with billing enabled — there is no free tier. Optionally provide a reference voice ID to clone a specific voice. Get a key at [fish.audio](https://fish.audio/). Model: `s2-pro`
+- **60dB**: High-quality TTS with voice cloning. Returns MP3 audio. `voice_id` is optional — leave it empty to use your account's system default voice, or set a voice ID (UUID) from your 60dB voice library (`GET https://api.60db.ai/myvoices`) to use a specific/cloned voice. Get a key at [60db.ai](https://60db.ai/).
 
 ### With an API key (free tier)
 
@@ -137,6 +141,16 @@ model_id: "eleven_flash_v2_5"
 ```
 
 Only `provider` is required. Each provider has sensible defaults for `voice_id` and `model_id`.
+
+For 60dB, `voice_id` is optional — omit it (or leave it empty) to use your account's system default voice, or set a voice ID (UUID) from your voice library:
+
+```yaml
+---
+provider: "60db"
+api_key: "your-key"
+voice_id: ""
+---
+```
 
 For Azure, add `region`:
 
