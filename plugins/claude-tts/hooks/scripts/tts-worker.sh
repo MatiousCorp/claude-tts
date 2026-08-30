@@ -20,6 +20,7 @@ rm -f "$TEMP_FILE"
 # --- Text Cleaning ---
 CLEANED=$(echo "$RAW_TEXT" | sed -E '
   /^```/,/^```/d
+  s/`([^` ]{1,40})`/\1/g
   s/`[^`]+`//g
   s|https?://[^ ]*||g
   s|[[:space:]]/?[a-zA-Z0-9_./-]+\.[a-zA-Z]{1,10}||g
