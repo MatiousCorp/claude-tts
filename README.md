@@ -165,7 +165,8 @@ If your config has `provider: "say"`, it will automatically be mapped to `local`
 
 1. Claude finishes a response (Stop hook fires)
 2. Any previously playing audio is stopped immediately
-3. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped
+3. Text is cleaned: code blocks, URLs, file paths, and markdown formatting are stripped.
+   Short inline code spans are spoken as plain words so identifiers in a sentence are not lost
 4. A background worker sends the text to your configured provider
 5. If the provider fails, local system TTS is used as fallback
 6. Audio files are queued and played sequentially via the platform audio player
