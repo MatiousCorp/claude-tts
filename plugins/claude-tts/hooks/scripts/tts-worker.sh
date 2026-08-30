@@ -57,6 +57,7 @@ if [[ -f "$CONFIG_FILE" ]]; then
   VOICE_ID=$(grep '^voice_id:' "$CONFIG_FILE" | head -1 | sed -E 's/^voice_id:[[:space:]]*"?([^"]*)"?/\1/')
   MODEL_ID=$(grep '^model_id:' "$CONFIG_FILE" | head -1 | sed -E 's/^model_id:[[:space:]]*"?([^"]*)"?/\1/')
   REGION=$(grep '^region:' "$CONFIG_FILE" | head -1 | sed -E 's/^region:[[:space:]]*"?([^"]*)"?/\1/')
+  BASE_URL=$(grep '^base_url:' "$CONFIG_FILE" | head -1 | sed -E 's/^base_url:[[:space:]]*"?([^"]*)"?/\1/')
 
   # Legacy migration: elevenlabs_api_key without provider → elevenlabs
   if [[ -z "$PROVIDER" ]]; then
@@ -75,6 +76,9 @@ elif [[ -n "${ELEVENLABS_API_KEY:-}" && ("$PROVIDER" == "elevenlabs" || -z "$PRO
   API_KEY="$ELEVENLABS_API_KEY"
   [[ -z "$PROVIDER" ]] && PROVIDER="elevenlabs"
 fi
+
+# Env var override for OpenAI-compatible gateways (LiteLLM, vLLM, ...)
+[[ -n "${CLAUDE_TTS_BASE_URL:-}" ]] && BASE_URL="$CLAUDE_TTS_BASE_URL"
 
 # Backward compat: map "say" → "local"
 [[ "$PROVIDER" == "say" ]] && PROVIDER="local"
@@ -184,6 +188,14 @@ tts_elevenlabs() {
   validate_audio "$AUDIO_FILE"
 }
 
+# Resolve the speech endpoint: defaults to OpenAI, honours base_url with or
+# without a trailing /v1 so LiteLLM-style gateway URLs work either way.
+openai_speech_url() {
+  local base="${BASE_URL:-https://api.openai.com}"
+  base="${base%/}"
+  [[ "$base" == */v1 ]] && printf '%s/audio/speech' "$base" || printf '%s/v1/audio/speech' "$base"
+}
+
 tts_openai() {
   AUDIO_FILE="${QUEUE_DIR}/${SEQ_PADDED}.mp3"
   local body
@@ -197,7 +209,7 @@ tts_openai() {
   local http_code
   http_code=$(curl -s -w "%{http_code}" -o "$AUDIO_FILE" \
     --max-time 30 \
-    -X POST "https://api.openai.com/v1/audio/speech" \
+    -X POST "$(openai_speech_url)" \
     -H "Authorization: Bearer ${API_KEY}" \
     -H "Content-Type: application/json" \
     -d "$body" 2>/dev/null || echo "000")
