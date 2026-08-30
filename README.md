@@ -148,9 +148,26 @@ region: "eastus"
 ---
 ```
 
+For an OpenAI-compatible gateway (LiteLLM, vLLM, LocalAI, ...), point the
+`openai` provider at it with `base_url`:
+
+```yaml
+---
+provider: "openai"
+base_url: "https://llm.example.com"
+api_key: "sk-..."
+model_id: "your-model-alias"
+voice_id: "your-voice"
+---
+```
+
+The base URL works with or without a trailing `/v1`. Omit `base_url` and the
+provider talks to `https://api.openai.com` as before.
+
 ### Environment variables
 
 - `CLAUDE_TTS_API_KEY` — generic, works with any provider
+- `CLAUDE_TTS_BASE_URL` — overrides `base_url` for the OpenAI provider
 - `ELEVENLABS_API_KEY` — legacy fallback for ElevenLabs provider
 
 ### Migration from v1
